@@ -1,0 +1,23 @@
+flowchart TB
+  user([Student browser]) -->|HTTPS| cf[CloudFront + ACM certificate]
+  cf -->|"/* static files (OAC)"| s3[(S3 bucket: React build, private)]
+  cf -->|"/api/*"| alb[Application Load Balancer<br/>public subnets, 2 AZs]
+  subgraph vpc["VPC 10.0.0.0/16"]
+    subgraph pub["Public subnets (IGW route)"]
+      alb
+      nat[NAT Gateway - optional]
+    end
+    subgraph app["Private app subnets"]
+      asg["EC2 Auto Scaling Group<br/>Node/Express on port 4000 (systemd)"]
+    end
+    subgraph data["Private DB subnets"]
+      rds[(RDS MySQL 8<br/>no public access)]
+    end
+    alb -->|"sg-alb to sg-app :4000"| asg
+    asg -->|"sg-app to sg-db :3306"| rds
+  end
+  asg -.->|IAM role| ssm[SSM Parameter Store<br/>DB + JWT secrets]
+  asg -.->|agent| cw[CloudWatch Logs + Metrics]
+  cw --> alarms{{CloudWatch Alarms<br/>CPU, unhealthy hosts, 5xx}}
+  alarms --> sns[SNS topic] --> mail([Email alerts])
+  igw[Internet Gateway] --- pub

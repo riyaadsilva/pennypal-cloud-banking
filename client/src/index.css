@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: light; }
+.dark { color-scheme: dark; }
+html, body, #root { min-height: 100%; }
+body { @apply bg-paper text-ink font-body antialiased dark:bg-slate-900 dark:text-slate-100; }
+h1, h2, h3, .font-display { font-family: "Fredoka", system-ui, sans-serif; letter-spacing: -0.01em; }
+:focus-visible { outline: 3px solid #8B5CF6; outline-offset: 2px; border-radius: 12px; }
+.glass { @apply bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl; }
+@media (prefers-reduced-motion: reduce) { *, ::before, ::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
+.no-motion *, .no-motion ::before, .no-motion ::after { animation: none !important; transition: none !important; }
+input[type="range"] { accent-color: #8B5CF6; }

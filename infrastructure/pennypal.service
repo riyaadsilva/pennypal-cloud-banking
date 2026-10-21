@@ -1,0 +1,27 @@
+[Unit]
+Description=PennyPal API
+After=network.target
+
+[Service]
+Type=simple
+User=pennypal
+WorkingDirectory=/opt/pennypal/server
+# Non-secret settings live here; secrets come from SSM Parameter Store via the instance IAM role (SSM_PREFIX).
+Environment=NODE_ENV=production
+Environment=PORT=4000
+Environment=SSM_PREFIX=/pennypal/prod
+Environment=AWS_REGION=ap-south-1
+ExecStart=/usr/bin/node src/index.js
+Restart=always
+RestartSec=3
+# Graceful shutdown: SIGTERM is handled in src/index.js
+KillSignal=SIGTERM
+TimeoutStopSec=15
+StandardOutput=journal
+StandardError=journal
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,9 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    { "Sid": "ReadPennyPalParameters", "Effect": "Allow", "Action": ["ssm:GetParametersByPath", "ssm:GetParameters", "ssm:GetParameter"],
+      "Resource": "arn:aws:ssm:*:*:parameter/pennypal/*" },
+    { "Sid": "DecryptParameters", "Effect": "Allow", "Action": "kms:Decrypt", "Resource": "*",
+      "Condition": { "StringEquals": { "kms:ViaService": "ssm.*.amazonaws.com" } } }
+  ]
+}
