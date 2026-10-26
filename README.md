@@ -86,7 +86,7 @@ flowchart TB
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/pennypal-cloud-banking.git
+git clone https://github.com/riyaadsilva/pennypal-cloud-banking.git
 cd pennypal-cloud-banking
 ```
 
