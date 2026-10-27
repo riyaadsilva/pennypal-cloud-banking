@@ -1,5 +1,5 @@
 
-name: PennyPal CI/CD
+name: PennyPal CI
 
 on:
   push:
@@ -26,22 +26,22 @@ jobs:
           node-version: '20'
 
       - name: Install frontend dependencies
-        working-directory: client
         run: npm ci
+        working-directory: client
 
       - name: Build React frontend
-        working-directory: client
         run: npm run build
+        working-directory: client
 
       - name: Install backend dependencies
-        working-directory: server
         run: npm ci
+        working-directory: server
 
       - name: Check backend JavaScript syntax
-        working-directory: server
         run: |
           find src -type f -name "*.js" -print0 |
             xargs -0 -r -n1 node --check
+        working-directory: server
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -61,52 +61,3 @@ jobs:
           file: ./server/Dockerfile
           push: false
           tags: pennypal-backend:ci
-
-  publish-ecr:
-    name: Publish Images to Amazon ECR
-    needs: build-and-test
-    if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      id-token: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      
-      - name: Debug GitHub OIDC claims
-        uses: github/actions-oidc-debugger@main
-        with:
-          audience: sts.amazonaws.com
-
-      - name: Configure AWS credentials using OIDC
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and push frontend image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./client
-          file: ./client/Dockerfile
-          push: true
-          tags: ${{ steps.login-ecr.outputs.registry }}/pennypal-frontend:${{ github.sha }}
-
-      - name: Build and push backend image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./server/Dockerfile
-          push: true
-          tags: ${{ steps.login-ecr.outputs.registry }}/pennypal-backend:${{ github.sha }}
