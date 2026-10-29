@@ -51,12 +51,25 @@ export default function Dashboard() {
   const nav = useNavigate();
   const [data, setData] = useState(null);
   const [modal, setModal] = useState(null);
+  const [reportBusy, setReportBusy] = useState(false);
   const load = useCallback(async () => {
     const [acc, tx, sv] = await Promise.all([api.get("/accounts/me"), api.get("/transactions?limit=200"), api.get("/savings")]);
     setData({ balance: acc.account.balance, tx: tx.transactions, goals: sv.goals });
   }, []);
   useEffect(() => { load().catch((e) => toast.error(e.message)); }, [load]);
   const balance = useCountUp(data?.balance ?? 0);
+
+  const generateReport = async () => {
+    setReportBusy(true);
+    try {
+      const result = await api.post("/reports/transactions", {});
+      toast.success(`Report saved to S3! ${result.report.transactionCount} transactions included.`);
+    } catch (error) {
+      toast.error(error.message || "Failed to generate report.");
+    } finally {
+      setReportBusy(false);
+    }
+  };
 
   const monthly = useMemo(() => {
     const m = {};
@@ -121,7 +134,12 @@ export default function Dashboard() {
 
       <div className="grid gap-5 md:grid-cols-5">
         <Card className="md:col-span-3">
-          <h2 className="mb-3 text-2xl font-semibold">Recent Transactions</h2>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-2xl font-semibold">Recent Transactions</h2>
+            <Button variant="soft" onClick={generateReport} loading={reportBusy} disabled={reportBusy}>
+              Generate Report
+            </Button>
+          </div>
           {data.tx.length === 0 ? <Empty title="Nothing yet" text="Add some coins to see your first transaction." /> : <div className="divide-y divide-slate-100 dark:divide-slate-700">{data.tx.slice(0, 5).map((t) => <TxRow key={t.id} t={t} />)}</div>}
         </Card>
         <Card className="md:col-span-2 bg-yellow-50 dark:bg-slate-800">
