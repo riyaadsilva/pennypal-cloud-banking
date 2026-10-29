@@ -9,5 +9,8 @@
     "seed": "npm --prefix server run seed",
     "test": "npm --prefix server test && npm --prefix client test",
     "build": "npm --prefix client run build"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.10"
   }
 }

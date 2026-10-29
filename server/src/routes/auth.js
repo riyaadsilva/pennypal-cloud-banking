@@ -7,6 +7,7 @@ import { validate } from "../middleware/validate.js";
 import { HttpError } from "../utils/errors.js";
 import { levelFor, XP_PER_LEVEL, touchStreak } from "../services/gamification.js";
 import { randomUUID } from "node:crypto";
+import { verifyCognitoToken } from "../services/cognito.js";
 
 const r = Router();
 const nickname = z.string().trim().min(3, "Nicknames need at least 3 characters.").max(20).regex(/^[A-Za-z0-9_]+$/, "Use letters, numbers and underscores only.");
@@ -72,8 +73,82 @@ r.patch("/me", requireAuth, validate(z.object({
 
 r.post("/password", requireAuth, validate(z.object({ current: z.string().max(64), next: password })), async (req, res) => {
   const u = await load(req.user.id);
+  if (u.cognito_sub) {
+    throw new HttpError(
+      403,
+      "COGNITO_MANAGED_PASSWORD",
+      "Please change your password through Amazon Cognito."
+    );
+  }
   if (!(await bcrypt.compare(req.body.current, u.password_hash))) throw new HttpError(400, "BAD_PASSWORD", "Your current password is not right.");
   await pool.query("UPDATE users SET password_hash = ? WHERE id = ?", [await bcrypt.hash(req.body.next, 10), u.id]);
   res.json({ ok: true });
 });
+
+r.post("/cognito", validate(z.object({
+  idToken: z.string().min(1),
+})), async (req, res) => {
+  const claims = await verifyCognitoToken(req.body.idToken);
+  const sub = claims.sub;
+
+  let [[user]] = await pool.query(
+    "SELECT * FROM users WHERE cognito_sub = ?",
+    [sub]
+  );
+
+  if (!user) {
+    const base = String(claims["cognito:username"] || "penny_user")
+      .replace(/[^A-Za-z0-9_]/g, "_")
+      .slice(0, 12) || "penny_user";
+
+    const nick = `${base}_${randomUUID().replace(/-/g, "").slice(0, 7)}`;
+    const hash = await bcrypt.hash(randomUUID(), 10);
+    const conn = await pool.getConnection();
+
+    try {
+      await conn.beginTransaction();
+
+      const [result] = await conn.query(
+        "INSERT INTO users (nickname, password_hash, role, cognito_sub) VALUES (?, ?, 'student', ?)",
+        [nick, hash, sub]
+      );
+
+      const [acct] = await conn.query(
+        "INSERT INTO accounts (user_id, balance) VALUES (?, 100)",
+        [result.insertId]
+      );
+
+      await conn.query(
+        `INSERT INTO transactions
+         (account_id, type, amount, category, description, balance_after, idempotency_key)
+         VALUES (?, 'deposit', 100, 'Gift', 'Welcome gift from Penny', 100, ?)`,
+        [acct.insertId, randomUUID()]
+      );
+
+      await conn.commit();
+    } catch (err) {
+      await conn.rollback();
+      if (err.code !== "ER_DUP_ENTRY") throw err;
+    } finally {
+      conn.release();
+    }
+
+    [[user]] = await pool.query(
+      "SELECT * FROM users WHERE cognito_sub = ?",
+      [sub]
+    );
+  }
+
+  if (!user) {
+    throw new HttpError(
+      409,
+      "COGNITO_ACCOUNT_CONFLICT",
+      "Unable to create your account. Please try again."
+    );
+  }
+
+  await touchStreak(user.id);
+  sendSession(res, await load(user.id));
+});
+
 export default r;

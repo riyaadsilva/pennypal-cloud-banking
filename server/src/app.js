@@ -3,11 +3,13 @@ import express from "express";
 import helmet from "helmet";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import reports from "./routes/reports.js";
 import rateLimit from "express-rate-limit";
 import { pool } from "./db/pool.js";
 import auth from "./routes/auth.js";
 import accounts from "./routes/accounts.js";
 import transactions from "./routes/transactions.js";
+import parentNotifications from "./routes/parentNotifications.js";
 import savings from "./routes/savings.js";
 import budgets from "./routes/budgets.js";
 import quizzes from "./routes/quizzes.js";
@@ -22,7 +24,7 @@ app.use(express.json({ limit: "10kb" }));
 app.use(cookieParser());
 app.use("/api", rateLimit({ windowMs: 60_000, limit: Number(process.env.RATE_MAX || 300), standardHeaders: true, legacyHeaders: false }));
 const authLimit = rateLimit({ windowMs: 15 * 60_000, limit: Number(process.env.RATE_AUTH_MAX || 40), standardHeaders: true, legacyHeaders: false, message: { error: { code: "RATE_LIMIT", message: "Too many tries. Take a short break and try again." } } });
-app.use(["/api/auth/login", "/api/auth/register"], authLimit);
+app.use(["/api/auth/login", "/api/auth/register", "/api/auth/cognito"], authLimit);
 
 // Liveness (ALB health check) vs readiness (database reachable).
 app.get("/api/health", (_req, res) => res.json({ status: "ok", uptime: Math.round(process.uptime()) }));
@@ -34,6 +36,10 @@ app.get("/api/ready", async (_req, res) => {
 app.use("/api/auth", auth);
 app.use("/api/accounts", accounts);
 app.use("/api/transactions", transactions);
+app.use("/api/parent-notifications", parentNotifications);
+app.use("/api/transactions", transactions);
+app.use("/api/reports", reports);
+app.use("/api/parent-notifications", parentNotifications);
 app.use("/api/savings", savings);
 app.use("/api/budgets", budgets);
 app.use("/api/quizzes", quizzes);

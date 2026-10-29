@@ -7,7 +7,7 @@ const secret = () => {
   return process.env.JWT_SECRET;
 };
 export const cookieOptions = () => ({
-  httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", maxAge: 7 * 24 * 3600 * 1000, path: "/",
+  httpOnly: true, sameSite: "lax", secure: process.env.COOKIE_SECURE === "true", maxAge: 7 * 24 * 3600 * 1000, path: "/",
 });
 export const signToken = (user) => jwt.sign({ id: user.id, role: user.role }, secret(), { expiresIn: "7d" });
 
